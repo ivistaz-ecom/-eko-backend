@@ -87,7 +87,7 @@ def test_wrong_domain_is_rejected_before_microsoft():
 def test_first_login_saves_profile_and_asks_language():
     c = client()
     r = sign_in(c)
-    assert r.status_code == 302 and r.headers["location"] == "http://localhost:3000/welcome"
+    assert r.status_code == 302 and r.headers["location"] == "http://localhost:3000/home?welcome=1"
     assert "eko_session" in r.headers["set-cookie"] and "HttpOnly" in r.headers["set-cookie"]
 
     with SessionLocal() as db:
@@ -103,7 +103,7 @@ def test_first_login_saves_profile_and_asks_language():
     assert r.status_code == 200 and r.json()["user"]["language"] == "hi"
     assert c.patch("/api/users/me/language", json={"language": "xx"}).status_code == 422
 
-    # Second login skips the language page and plays the welcome animation.
+    # A later login still plays the welcome animation. The setup popup stays closed once a language is saved.
     r = sign_in(client())
     assert r.headers["location"] == "http://localhost:3000/home?welcome=1"
 

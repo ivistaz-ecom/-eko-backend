@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
   city            VARCHAR(120) NULL,
   department      VARCHAR(160) NULL,
   job_title       VARCHAR(160) NULL,
+  job_function    VARCHAR(160) NULL COMMENT 'Function chosen in the welcome popup',
+  work_location   VARCHAR(160) NULL COMMENT 'Location chosen in the welcome popup',
   photo_url       VARCHAR(500) NULL,
   role            ENUM('super_admin','admin','employee') NOT NULL DEFAULT 'employee',
   is_active       TINYINT(1)   NOT NULL DEFAULT 1,

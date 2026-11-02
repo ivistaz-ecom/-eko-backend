@@ -48,6 +48,20 @@ def log_event(db: Session, request: Request | None, event: str, *, user_id: int 
     ))
 
 
+def log_login_if_due(db: Session, request: Request | None, *, user_id: int, email: str | None,
+                     detail: str | None = None, every_days: int = 20) -> None:
+    """One login_success row per person per 20 days. Later sign-ins in that window are not logged again."""
+    latest = db.scalar(
+        select(LoginEvent.created_at)
+        .where(LoginEvent.user_id == user_id, LoginEvent.event == "login_success")
+        .order_by(LoginEvent.id.desc())
+        .limit(1)
+    )
+    if latest is not None and utcnow() - latest < timedelta(days=every_days):
+        return
+    log_event(db, request, "login_success", user_id=user_id, email=email, detail=detail)
+
+
 def create_session(db: Session, request: Request, user: User, remember: bool) -> tuple[str, UserSession]:
     token = secrets.token_urlsafe(32)
     now = utcnow()

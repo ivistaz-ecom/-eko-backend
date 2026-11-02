@@ -44,6 +44,9 @@ class User(Base):
     city: Mapped[str | None] = mapped_column(String(120))
     department: Mapped[str | None] = mapped_column(String(160))
     job_title: Mapped[str | None] = mapped_column(String(160))
+    # Chosen in the welcome popup. Kept apart from city/department, which Microsoft refreshes.
+    job_function: Mapped[str | None] = mapped_column(String(160))
+    work_location: Mapped[str | None] = mapped_column(String(160))
     photo_url: Mapped[str | None] = mapped_column(String(500))
     role: Mapped[str] = mapped_column(Enum(*ROLES, name="user_role"), default="employee", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -20,6 +20,7 @@ from .sessions import (
     clear_session_cookie,
     create_session,
     log_event,
+    log_login_if_due,
     peek_session,
     require_session,
     resolve_session,
@@ -143,11 +144,23 @@ async def callback(request: Request, db: Session = Depends(get_db)):
     user.tenant_id = claims["tid"]
     user.username = upn
     user.email = mail
-    user.name = profile.get("displayName") or claims.get("name") or upn
+    # Name and designation stay as the person saved them. Microsoft fills them only
+    # on the first sign-in, or when designation is still empty.
+    graph_name = profile.get("displayName") or claims.get("name") or upn
+    if is_new or not (user.name or "").strip():
+        user.name = graph_name
     user.phone = profile.get("mobilePhone") or (phones[0] if phones else None)
-    user.city = profile.get("city") or profile.get("officeLocation")
-    user.department = profile.get("department")
-    user.job_title = profile.get("jobTitle")
+    # Microsoft fills these only when it actually has a value, and never over a
+    # function or location the person already chose in eKO.
+    graph_city = profile.get("city") or profile.get("officeLocation")
+    graph_dept = profile.get("department")
+    graph_title = profile.get("jobTitle")
+    if graph_title and (is_new or not (user.job_title or "").strip()):
+        user.job_title = graph_title
+    if graph_dept and not user.job_function:
+        user.department = graph_dept
+    if graph_city and not user.work_location:
+        user.city = graph_city
     user.last_login_at = utcnow()
     if mail in settings.super_admins or upn in settings.super_admins:
         user.role = "super_admin"
@@ -162,11 +175,11 @@ async def callback(request: Request, db: Session = Depends(get_db)):
 
     db.flush()  # assigns user.id for a new user
     token, _ = create_session(db, request, user, remember)
-    log_event(db, request, "login_success", user_id=user.id, email=mail, detail="first_login" if is_new else None)
+    log_login_if_due(db, request, user_id=user.id, email=mail, detail="first_login" if is_new else None)
     db.commit()
 
-    # First login (no language chosen yet) -> language picker, otherwise straight in.
-    target = _front("/welcome") if not user.language else _front(next_path or "/home", welcome="1")
+    # Home plays the fizzy welcome. A new user then gets the setup popup there.
+    target = _front(next_path or "/home", welcome="1")
     resp = RedirectResponse(target, status_code=302)
     set_session_cookie(resp, token, remember)
     return resp
